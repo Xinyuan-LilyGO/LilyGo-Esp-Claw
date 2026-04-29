@@ -5,7 +5,9 @@
 
 ​								**English | [中文](./README_CN.md)**
 
-<img src="images\esp-claw.png" alt="esp-claw" style="zoom:25%;" /> Compatible device：
+<img src="images\esp-claw.png" alt="esp-claw" style="zoom:25%;" /> 
+
+Compatible device：
 
 | T-Connect-Pro | [![alt text](https://camo.githubusercontent.com/aba00c21f632b6ee99f63dba2e64de19d88bea4ac4f4c1f1512ab13d0a72fbc2/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f2d737570706f727465642d677265656e)](https://camo.githubusercontent.com/aba00c21f632b6ee99f63dba2e64de19d88bea4ac4f4c1f1512ab13d0a72fbc2/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f2d737570706f727465642d677265656e) |
 | ------------- | ------------------------------------------------------------ |
