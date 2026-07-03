@@ -1,0 +1,74 @@
+{
+  "esp32s3": [
+    {
+      "board": "esp32_S3_DevKitC_1",
+      "features": [],
+      "description": "",
+      "merged_binary": "/esp32_S3_DevKitC_1__65225c1.bin",
+      "min_flash_size": 8,
+      "nvs_info": {
+        "start_addr": "0x9000",
+        "size": "0x6000"
+      }
+    },
+    {
+      "board": "esp32_S3_DevKitC_1_breadboard",
+      "features": [],
+      "description": "",
+      "merged_binary": "/esp32_S3_DevKitC_1_breadboard__65225c1.bin",
+      "min_flash_size": 8,
+      "nvs_info": {
+        "start_addr": "0x9000",
+        "size": "0x6000"
+      }
+    },
+    {
+      "board": "esp_vocat_board_v1_2",
+      "features": [],
+      "description": "",
+      "merged_binary": "/esp_vocat_board_v1_2__65225c1.bin",
+      "min_flash_size": 16,
+      "nvs_info": {
+        "start_addr": "0x9000",
+        "size": "0x6000"
+      }
+    }
+  ],
+  "esp32p4": [
+    {
+      "board": "esp32_p4_function_ev",
+      "features": [],
+      "description": "",
+      "merged_binary": "/esp32_p4_function_ev__65225c1.bin",
+      "min_flash_size": 16,
+      "nvs_info": {
+        "start_addr": "0x9000",
+        "size": "0x6000"
+      }
+    }
+  ],
+  "esp32c5": [
+    {
+      "board": "esp_SensairHalo",
+      "features": [],
+      "description": "",
+      "merged_binary": "/esp_SensairHalo__65225c1.bin",
+      "min_flash_size": 16,
+      "nvs_info": {
+        "start_addr": "0x9000",
+        "size": "0x6000"
+      }
+    },
+    {
+      "board": "esp_SensairShuttle",
+      "features": [],
+      "description": "",
+      "merged_binary": "/esp_SensairShuttle__65225c1.bin",
+      "min_flash_size": 16,
+      "nvs_info": {
+        "start_addr": "0x9000",
+        "size": "0x6000"
+      }
+    }
+  ]
+}

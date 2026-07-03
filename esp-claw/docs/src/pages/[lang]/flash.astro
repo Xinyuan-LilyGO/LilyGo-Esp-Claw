@@ -1,0 +1,1366 @@
+---
+import SiteShell from "@/layouts/SiteShell.astro";
+import firmwareDb from "@/flash-tool/firmware.json";
+import type { Lang } from "@/site/locales";
+import { localeHref } from "@/site/locales";
+import { getChromeStrings } from "@/site/chrome-i18n";
+import { getStrings } from "@/flash-tool/i18n";
+
+import Zap from "@lucide/astro/icons/zap";
+import Cable from "@lucide/astro/icons/cable";
+import Unplug from "@lucide/astro/icons/unplug";
+
+export function getStaticPaths() {
+  return [{ params: { lang: "en" } }, { params: { lang: "zh-cn" } }];
+}
+
+const { lang } = Astro.params as { lang: Lang };
+const s = getStrings(lang);
+const chrome = getChromeStrings(lang);
+const tutorialHref = localeHref(lang, "tutorial/get-started");
+const boardsHref = "https://github.com/espressif/esp-claw/tree/master/application/basic_demo/boards";
+
+const quickLinks = [
+  {
+    icon: "🔧",
+    title: s.quickLinkNoHardwareTitle,
+    desc: s.quickLinkNoHardwareDesc,
+    href: tutorialHref,
+    external: false,
+  },
+  {
+    icon: "📋",
+    title: s.quickLinkBoardsTitle,
+    desc: s.quickLinkBoardsDesc,
+    href: boardsHref,
+    external: true,
+  },
+];
+/** Safe JSON for <script type="application/json"> (breaks if raw `<` appears in strings) */
+const flashBootJson = JSON.stringify({
+  lang,
+  firmwareDb,
+  strings: getStrings(lang),
+}).replace(/</g, "\\u003c");
+---
+
+<SiteShell
+  lang={lang}
+  title={`${s.pageTitle} — ESP-Claw`}
+  description={s.pageSubtitle}
+  pagePath="flash"
+  chrome={chrome}
+>
+  <style slot="head">
+    @import url("@/styles/homepage.css");
+
+    @keyframes pulse {
+      0%,
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+      50% {
+        opacity: 0.5;
+        transform: scale(0.8);
+      }
+    }
+
+    .page-header {
+      padding: 3rem 3rem 2.5rem;
+      border-bottom: 1px solid var(--border);
+      background: radial-gradient(
+        ellipse at 50% 0%,
+        rgba(232, 54, 45, 0.06) 0%,
+        transparent 60%
+      );
+      text-align: center;
+    }
+
+    .page-header h1 {
+      font-size: clamp(1.6rem, 3vw, 2.2rem);
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      margin-bottom: 0.6rem;
+    }
+    .page-header p {
+      font-size: 1rem;
+      color: var(--text-secondary);
+      max-width: 620px;
+      margin: 0 auto;
+    }
+
+    main {
+      flex: 1;
+      padding: 2rem 2rem 4rem;
+      max-width: 900px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    /* Connection status bar */
+    .connect-bar {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 0.9rem 1.5rem;
+      margin-bottom: 1.5rem;
+      transition:
+        border-color 0.3s,
+        background 0.3s;
+    }
+    .connect-bar.is-connected {
+      border-color: rgba(104, 211, 145, 0.22);
+      background: linear-gradient(
+        135deg,
+        var(--bg-card) 0%,
+        rgba(104, 211, 145, 0.025) 100%
+      );
+    }
+    .connect-bar-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .device-info-row {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      flex-wrap: wrap;
+    }
+    .device-meta-sep {
+      color: var(--border);
+      font-size: 0.8rem;
+      user-select: none;
+    }
+    .device-meta-item {
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+      font-family: "JetBrains Mono", monospace;
+      font-weight: 600;
+    }
+    /* Status Badges */
+    :global(.status-badge) {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.8rem;
+      padding: 0.3rem 0.75rem;
+      border-radius: 100px;
+      font-weight: 500;
+    }
+    :global(.status-dot) {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+    }
+    :global(.status-badge.disconnected) {
+      color: var(--text-muted);
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border);
+    }
+    :global(.status-badge.connected) {
+      color: var(--green);
+      background: var(--green-dim);
+      border: 1px solid rgba(104, 211, 145, 0.2);
+    }
+    :global(.status-badge.connected .status-dot) {
+      background: var(--green);
+      animation: pulse 2s infinite;
+    }
+    :global(.status-badge.disconnected .status-dot) {
+      background: var(--text-muted);
+    }
+
+    /* Main content area (visible after device connection) */
+    .main-content {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+    .main-content.revealed {
+      animation: fadeSlideIn 0.28s ease;
+    }
+    @keyframes fadeSlideIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Collapsible animation for conditional fields */
+    .collapsible {
+      overflow: hidden;
+      max-height: 0;
+      opacity: 0;
+      margin-top: 0;
+      transition:
+        max-height 0.32s ease,
+        opacity 0.22s ease,
+        margin-top 0.32s ease;
+    }
+    .collapsible.open {
+      max-height: 400px;
+      opacity: 1;
+      margin-top: 1rem;
+    }
+
+    /* Reveal animation for the config form */
+    @keyframes configReveal {
+      from {
+        opacity: 0;
+        transform: translateY(-8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .config-revealed {
+      animation: configReveal 0.3s ease;
+    }
+
+    .flash-tab-section {
+      margin-bottom: 1rem;
+    }
+    .tab-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .chip-info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 0.75rem;
+      margin-top: 1.25rem;
+    }
+    .chip-info-item {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 0.85rem 1rem;
+    }
+    .chip-info-label {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      margin-bottom: 0.25rem;
+    }
+    .chip-info-value {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      font-family: "JetBrains Mono", monospace;
+      /* word-break: break-all; */
+    }
+
+    .config-section {
+      margin-top: 1.75rem;
+    }
+    .config-section + .config-section {
+      margin-top: 1.5rem;
+    }
+    .section-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--accent-soft);
+      margin-bottom: 0.85rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .section-label::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: var(--border-accent);
+    }
+    .advanced-details > summary.section-label {
+      cursor: pointer;
+      list-style: none;
+      margin-bottom: 0;
+      user-select: none;
+    }
+    .advanced-details > summary.section-label::-webkit-details-marker {
+      display: none;
+    }
+    .advanced-details > summary.section-label::before {
+      content: "▸";
+      display: inline-block;
+      font-size: 0.7rem;
+      transition: transform 0.2s ease;
+      margin-right: 0.15rem;
+    }
+    .advanced-details[open] > summary.section-label::before {
+      transform: rotate(90deg);
+    }
+    .advanced-details > .form-grid {
+      margin-top: 0.85rem;
+    }
+    .section-note {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-bottom: 0.75rem;
+    }
+    .search-tip {
+      font-size: 0.78rem;
+      line-height: 1.6;
+      color: var(--text-secondary);
+      background: rgba(104, 211, 145, 0.08);
+      border: 1px solid rgba(104, 211, 145, 0.3);
+      border-radius: var(--radius-sm);
+      padding: 0.6rem 0.75rem;
+      margin-bottom: 0.85rem;
+    }
+    .search-tip-title {
+      color: var(--green);
+      font-weight: 700;
+      margin-right: 0.3rem;
+    }
+    .search-tip a {
+      color: inherit;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .section-subtitle {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 0.75rem;
+    }
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.85rem;
+    }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+    .form-group-actions {
+      justify-content: flex-end;
+    }
+    .form-group.full {
+      grid-column: 1 / -1;
+    }
+    .field-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+      min-height: 40px;
+    }
+    .field-actions.hidden {
+      display: none;
+    }
+    .action-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 38px;
+      padding: 0.5rem 0.9rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--bg-surface);
+      color: var(--text-secondary);
+      font-size: 0.82rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition:
+        border-color 0.15s,
+        color 0.15s,
+        background 0.15s;
+    }
+    .action-link:hover {
+      border-color: rgba(255, 255, 255, 0.18);
+      color: var(--text-primary);
+      background: var(--bg-card-hover);
+    }
+
+    :global(.im-channel-list) {
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+      margin-bottom: 0.65rem;
+    }
+    :global(.im-channel-card) {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--bg-surface);
+      overflow: hidden;
+    }
+    :global(.im-channel-card-header) {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.5rem 0.85rem;
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border);
+    }
+    :global(.im-channel-name) {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    :global(.im-channel-remove) {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 0.78rem;
+      font-weight: 500;
+      padding: 0.15rem 0.5rem;
+      border-radius: var(--radius-sm);
+      transition: color 0.15s, background 0.15s;
+    }
+    :global(.im-channel-remove:hover) {
+      color: #f87171;
+      background: rgba(248, 113, 113, 0.08);
+    }
+    :global(.im-channel-card-body) {
+      padding: 0.85rem 1rem;
+    }
+    :global(.im-channel-card-body .form-grid) {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.85rem;
+    }
+    :global(.im-channel-card-body .form-group) {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+    :global(.im-channel-card-body .form-group.full) {
+      grid-column: 1 / -1;
+    }
+    :global(.im-channel-card-body label) {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+    :global(.im-channel-card-body label .required) {
+      color: var(--accent-soft);
+      margin-left: 2px;
+    }
+    :global(.im-channel-card-body input) {
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      border-radius: var(--radius-sm);
+      padding: 0.55rem 0.85rem;
+      font-size: 0.875rem;
+      font-family: inherit;
+      transition: border-color 0.15s;
+      width: 100%;
+    }
+    :global(.im-channel-card-body input:focus) {
+      outline: none;
+      border-color: rgba(232, 54, 45, 0.4);
+    }
+    :global(.im-channel-card-body input::placeholder) {
+      color: var(--text-muted);
+    }
+    :global(.im-channel-card-body .section-note) {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+    :global(.wechat-qr-wrap) {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      align-items: center;
+    }
+    :global(.wechat-qr-box) {
+      position: relative;
+      width: 180px;
+      height: 180px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: #fff;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    :global(.wechat-qr-canvas) {
+      display: block;
+      width: 100%;
+      height: 100%;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+    :global(.wechat-qr-box.expired .wechat-qr-canvas) {
+      filter: blur(6px) grayscale(0.75);
+    }
+    :global(.wechat-qr-overlay) {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 0.75rem;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #fff;
+      background: rgba(8, 10, 14, 0.55);
+      backdrop-filter: blur(1px);
+      border: 0;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+    }
+    :global(.wechat-qr-box:hover .wechat-qr-overlay),
+    :global(.wechat-qr-box:focus-within .wechat-qr-overlay) {
+      opacity: 1;
+    }
+    :global(.wechat-qr-box.expired .wechat-qr-overlay) {
+      opacity: 1;
+    }
+    :global(.wechat-qr-meta) {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.55rem;
+      text-align: center;
+    }
+    :global(.wechat-qr-status) {
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+    }
+    :global(.wechat-qr-ready) {
+      font-size: 0.78rem;
+      color: var(--green);
+    }
+    :global(.wechat-qr-actions) {
+      display: flex;
+      justify-content: center;
+      gap: 0.55rem;
+      flex-wrap: wrap;
+    }
+    :global(.wechat-qr-actions .btn-secondary) {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--text-secondary);
+      font-size: 0.8rem;
+      padding: 0.3rem 0.75rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: transparent;
+      cursor: pointer;
+      font-family: inherit;
+      font-weight: 500;
+      white-space: nowrap;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    :global(.wechat-qr-actions .btn-secondary:hover:not(:disabled)) {
+      background: rgba(255, 255, 255, 0.04);
+      border-color: rgba(255, 255, 255, 0.14);
+      color: var(--text-primary);
+    }
+    :global(.wechat-qr-actions .btn-secondary:disabled) {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    :global(.wechat-qr-link) {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    :global(.wechat-notice) {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.55rem;
+      font-size: 0.78rem;
+      line-height: 1.55;
+      background: rgba(250, 204, 21, 0.1);
+      border: 1px solid rgba(250, 204, 21, 0.35);
+      border-radius: var(--radius-sm);
+      padding: 0.6rem 0.85rem;
+      margin-bottom: 0.85rem;
+    }
+    :global(.wechat-notice-icon) {
+      width: 1rem;
+      height: 1rem;
+      flex: 0 0 auto;
+      margin-top: 0.1rem;
+      color: #facc15;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+      filter: drop-shadow(0 0 6px rgba(250, 204, 21, 0.4));
+    }
+    :global(.wechat-error-box) {
+      display: block;
+      width: 100%;
+      box-sizing: border-box;
+      font-size: 0.78rem;
+      color: #f87171;
+      background: rgba(248, 113, 113, 0.08);
+      border: 1px solid rgba(248, 113, 113, 0.2);
+      border-radius: var(--radius-sm);
+      padding: 0.45rem 0.75rem;
+      margin-bottom: 0.85rem;
+      word-break: break-word;
+    }
+    .im-add-row {
+      position: relative;
+      display: block;
+      width: 100%;
+    }
+    #im-add-btn {
+      display: flex;
+      width: 100%;
+      justify-content: center;
+    }
+    :global(.im-add-menu) {
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      z-index: 20;
+      min-width: 100%;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+    }
+    :global(.im-add-menu-item) {
+      display: block;
+      width: 100%;
+      padding: 0.5rem 0.85rem;
+      text-align: left;
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: background 0.12s, color 0.12s;
+    }
+    :global(.im-add-menu-item:not(:disabled):hover) {
+      background: var(--bg-card-hover);
+      color: var(--text-primary);
+    }
+    :global(.im-add-menu-item:disabled) {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+    label {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+    label .required {
+      color: var(--accent-soft);
+      margin-left: 2px;
+    }
+    input,
+    select {
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      border-radius: var(--radius-sm);
+      padding: 0.55rem 0.85rem;
+      font-size: 0.875rem;
+      font-family: inherit;
+      transition: border-color 0.15s;
+      width: 100%;
+    }
+    input:focus,
+    select:focus {
+      outline: none;
+      border-color: rgba(232, 54, 45, 0.4);
+    }
+    input::placeholder {
+      color: var(--text-muted);
+    }
+    input.invalid {
+      border-color: var(--accent-soft);
+    }
+    select option {
+      background: #1c2028;
+    }
+
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 0.75rem 1.5rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      text-align: center;
+      transition:
+        color 0.15s,
+        border-color 0.15s;
+    }
+    .tab-btn.active {
+      color: var(--text-primary);
+      border-bottom-color: var(--accent-soft);
+    }
+    .tab-panel {
+      display: none;
+      padding: 1.5rem;
+    }
+    .tab-panel.active {
+      display: block;
+    }
+
+    .flash-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      flex-wrap: wrap;
+    }
+    .flash-hint {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .progress-wrap {
+      margin-top: 1.25rem;
+      display: none;
+    }
+    .progress-wrap.visible {
+      display: block;
+    }
+    .progress-label {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.4rem;
+      display: flex;
+      justify-content: space-between;
+    }
+    .progress-bar-bg {
+      height: 6px;
+      background: rgba(255, 255, 255, 0.07);
+      border-radius: 9px;
+      overflow: hidden;
+    }
+    .progress-bar {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 9px;
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+    .progress-log {
+      margin-top: 1rem;
+      padding: 0.75rem 1rem;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      font-family: "JetBrains Mono", monospace;
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      max-height: 160px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .flash-result {
+      margin-top: 1rem;
+      padding: 0.85rem 1rem;
+      border-radius: var(--radius-md);
+      font-size: 0.875rem;
+      display: none;
+    }
+    .flash-result.visible {
+      display: block;
+    }
+    .flash-result.success {
+      background: var(--green-dim);
+      border: 1px solid rgba(104, 211, 145, 0.2);
+      color: var(--green);
+    }
+    .flash-result.error {
+      background: var(--accent-dim);
+      border: 1px solid var(--border-accent);
+      color: #f87171;
+    }
+
+    .console-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+    .console-output {
+      background: #07080a;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      height: 320px;
+      overflow-y: auto;
+      padding: 0.75rem 1rem;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 0.78rem;
+      color: #c8d0e7;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .console-input-row {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+    }
+    .console-input-row input {
+      flex: 1;
+      font-family: "JetBrains Mono", monospace;
+    }
+    .console-send-btn {
+      flex-shrink: 0;
+    }
+
+    .unsupported-banner {
+      display: none;
+      margin-bottom: 1.5rem;
+      padding: 1rem 1.2rem;
+      background: rgba(248, 113, 113, 0.08);
+      border: 1px solid rgba(248, 113, 113, 0.2);
+      border-radius: var(--radius-md);
+      font-size: 0.875rem;
+      color: #f87171;
+    }
+    .unsupported-banner.visible {
+      display: block;
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.12);
+      border-radius: 9px;
+    }
+
+    @media (max-width: 700px) {
+      .page-header {
+        padding: 2rem 1.5rem;
+      }
+      main {
+        padding: 1.25rem 1rem 3rem;
+      }
+      .connect-bar {
+        padding: 0.75rem 1rem;
+      }
+      .tab-panel {
+        padding: 1rem;
+      }
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+      .form-group.full {
+        grid-column: auto;
+      }
+      :global(.im-channel-card-body .form-grid) {
+        grid-template-columns: 1fr;
+      }
+      :global(.im-channel-card-body .form-group.full) {
+        grid-column: auto;
+      }
+    }
+
+    /* Firmware Grid & Cards */
+    .firmware-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 0.85rem;
+    }
+    :global(.firmware-card) {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 1rem 1.1rem;
+      cursor: pointer;
+      transition:
+        border-color 0.15s,
+        background 0.15s;
+      position: relative;
+    }
+    :global(.firmware-card:hover) {
+      border-color: rgba(255, 255, 255, 0.16);
+      background: var(--bg-card-hover);
+    }
+    :global(.firmware-card.selected) {
+      border-color: var(--accent-soft);
+      background: var(--accent-dim);
+    }
+    :global(.firmware-card.selected::after) {
+      content: "✓";
+      position: absolute;
+      top: 0.6rem;
+      right: 0.75rem;
+      color: var(--accent-soft);
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+    :global(.fw-board) {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 0.3rem;
+    }
+    :global(.fw-meta) {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+    :global(.fw-features) {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.3rem;
+      margin-top: 0.5rem;
+    }
+    :global(.fw-tag) {
+      font-size: 0.68rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0.1rem 0.45rem;
+      color: var(--text-secondary);
+    }
+    .firmware-desc {
+      margin-top: 1rem;
+      padding: 1rem 1.2rem;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      display: none;
+    }
+    .firmware-desc.visible {
+      display: none;
+    }
+
+    /* Quick-link cards above the flash tool */
+    .quick-links {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.85rem;
+      margin-bottom: 1.5rem;
+    }
+    @media (max-width: 540px) {
+      .quick-links {
+        grid-template-columns: 1fr;
+      }
+    }
+    .quick-link-card {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      padding: 0.85rem 1.1rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      text-decoration: none;
+      color: inherit;
+      transition:
+        border-color 0.15s,
+        background 0.15s;
+    }
+    .quick-link-card:hover {
+      border-color: rgba(255, 255, 255, 0.16);
+      background: var(--bg-card-hover);
+    }
+    .quick-link-icon {
+      font-size: 1.4rem;
+      flex-shrink: 0;
+      line-height: 1;
+    }
+    .quick-link-text {
+      min-width: 0;
+    }
+    .quick-link-title {
+      font-size: 0.8rem;
+      color: var(--text-primary);
+      margin-bottom: 0.15rem;
+    }
+    .quick-link-desc {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .quick-link-arrow {
+      margin-left: auto;
+      flex-shrink: 0;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+  </style>
+
+  <div class="page-header">
+    <h1>{s.pageTitle}</h1>
+    <p>{s.pageSubtitle}</p>
+  </div>
+
+  <main>
+    <!-- Quick-link cards -->
+    <div class="quick-links">
+      {quickLinks.map((card) => (
+        <a
+          href={card.href}
+          class="quick-link-card"
+          target={card.external ? "_blank" : undefined}
+          rel={card.external ? "noopener noreferrer" : undefined}
+        >
+          <span class="quick-link-icon">{card.icon}</span>
+          <span class="quick-link-text">
+            <div class="quick-link-title">{card.title}</div>
+            <div class="quick-link-desc">{card.desc}</div>
+          </span>
+          <span class="quick-link-arrow">{card.external ? "↗" : "→"}</span>
+        </a>
+      ))}
+    </div>
+
+    <div class="unsupported-banner" id="unsupported-banner">
+      {s.webSerialUnsupported}
+    </div>
+
+    <!-- Connection status bar -->
+    <div class="connect-bar" id="connect-bar">
+      <!-- Disconnected state -->
+      <div id="connect-bar-idle" class="connect-bar-row">
+        <span class="status-badge disconnected">
+          <span class="status-dot"></span>
+          <span>{s.notConnected}</span>
+        </span>
+        <button class="btn-primary" id="connect-btn">
+          <Cable class="button-icon" />
+          {s.connectBtn}
+        </button>
+      </div>
+
+      <!-- Connected state (hidden by default) -->
+      <div id="connect-bar-active" class="connect-bar-row" style="display:none">
+        <div class="device-info-row">
+          <span class="status-badge connected" id="status-badge">
+            <span class="status-dot"></span>
+            <span id="status-text">{s.notConnected}</span>
+          </span>
+          <span class="device-meta-sep">·</span>
+          <span class="device-meta-item" id="info-chip" style="display: none;"
+            >—</span
+          >
+          <span class="device-meta-sep">·</span>
+          <span class="device-meta-item" id="info-flash" style="display: none;"
+            >—</span
+          >
+        </div>
+        <button class="btn-secondary" id="disconnect-btn">
+          <Unplug class="button-icon" />
+          {s.disconnectBtn}
+        </button>
+      </div>
+    </div>
+
+    <!-- Main content area (revealed after connection) -->
+    <div id="main-content" class="main-content" style="display:none">
+      <div class="tabs">
+        <button type="button" class="tab-btn active" id="tab-flash-btn"
+          >{s.tabFlash}</button
+        >
+        <button type="button" class="tab-btn" id="tab-console-btn" disabled
+          >{s.tabConsole}</button
+        >
+      </div>
+
+      <div class="tab-panel active" id="tab-flash">
+        <div class="section-label flash-tab-section">{s.step2Title}</div>
+        <div class="firmware-grid" id="firmware-grid"></div>
+        <div class="firmware-desc" id="firmware-desc"></div>
+        <p
+          id="no-firmware-msg"
+          style="display:none; color: var(--text-muted); font-size: 0.875rem; margin-top: 0.5rem;"
+        >
+          {s.noFirmwareMatch}
+        </p>
+
+        <div id="config-form" style="display:none; margin-top: 2rem;">
+          <div class="config-section">
+            <div class="section-label">{s.sectionBasic}</div>
+            <div class="section-subtitle">{s.sectionWifi}</div>
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="wifi_ssid"
+                  >{s.wifiSsidLabel} <span class="required">*</span></label
+                >
+                <input
+                  type="text"
+                  id="wifi_ssid"
+                  name="wifi_ssid"
+                  autocomplete="off"
+                />
+              </div>
+              <div class="form-group">
+                <label for="wifi_password">{s.wifiPasswordLabel}</label>
+                <input
+                  type="password"
+                  id="wifi_password"
+                  name="wifi_password"
+                  autocomplete="off"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div class="config-section">
+            <div class="section-label">{s.sectionLlm}</div>
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="llm_mode"
+                  >{s.llmModeLabel} <span class="required">*</span></label
+                >
+                <select id="llm_mode" name="llm_mode">
+                  <option value="qwen">{s.llmOptionQwen}</option>
+                  <option value="openai">{s.llmOptionOpenai}</option>
+                  <option value="anthropic">{s.llmOptionAnthropic}</option>
+                  <option value="openai_compat"
+                    >{s.llmOptionOpenaiCompat}</option
+                  >
+                  <option value="anthropic_compat"
+                    >{s.llmOptionAnthropicCompat}</option
+                  >
+                </select>
+              </div>
+              <div
+                class="form-group form-group-actions"
+                id="llm_vendor_actions"
+              >
+                <label>{s.llmModeLabel}</label>
+                <div class="field-actions">
+                  <a
+                    class="action-link"
+                    id="llm_api_key_link"
+                    href="https://bailian.console.aliyun.com/?tab=model#/api-key"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {s.llmGetApiKeyBtn}
+                  </a>
+                  <a
+                    class="action-link"
+                    id="llm_docs_link"
+                    href="https://bailian.console.aliyun.com/cn-beijing?tab=doc#/doc/?type=model&url=2840915"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {s.llmVendorDocsBtn}
+                  </a>
+                </div>
+              </div>
+              <!-- Expanded only when a compatible API mode is selected -->
+              <div class="form-group full collapsible" id="llm_base_url_wrap">
+                <label for="llm_base_url"
+                  ><span id="llm_base_url_label_text">{s.llmBaseUrlLabel}</span> <span class="required">*</span></label
+                >
+                <input
+                  type="url"
+                  id="llm_base_url"
+                  name="llm_base_url"
+                  placeholder="https://api.openai.com/v1"
+                  autocomplete="off"
+                />
+              </div>
+              <div class="form-group">
+                <label for="llm_model"
+                  >{s.llmModelLabel} <span class="required">*</span></label
+                >
+                <input
+                  type="text"
+                  id="llm_model"
+                  name="llm_model"
+                  placeholder="gpt-4o-mini / qwen-turbo"
+                />
+              </div>
+              <div class="form-group full">
+                <label for="llm_api_key"
+                  >{s.llmApiKeyLabel} <span class="required">*</span></label
+                >
+                <input
+                  type="password"
+                  id="llm_api_key"
+                  name="llm_api_key"
+                  autocomplete="off"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div class="config-section">
+            <div class="section-label">{s.sectionIm}</div>
+            <p class="section-note">{s.imNote}</p>
+            <!-- Dynamically rendered channel cards are inserted here by JS -->
+            <div id="im-channel-list" class="im-channel-list"></div>
+            <div class="im-add-row" id="im-add-row">
+              <button
+                type="button"
+                class="btn-secondary"
+                id="im-add-btn"
+              >
+                + {s.imAddChannel}
+              </button>
+              <div class="im-add-menu" id="im-add-menu" style="display:none;">
+                <button
+                  type="button"
+                  class="im-add-menu-item"
+                  data-channel="qq">{s.imChannelQq}</button
+                >
+                <button
+                  type="button"
+                  class="im-add-menu-item"
+                  data-channel="feishu">{s.imChannelFeishu}</button
+                >
+                <button
+                  type="button"
+                  class="im-add-menu-item"
+                  data-channel="tg">{s.imChannelTg}</button
+                >
+                <button
+                  type="button"
+                  class="im-add-menu-item"
+                  data-channel="wechat">{s.imChannelWechat}</button
+                >
+              </div>
+            </div>
+          </div>
+
+          <div class="config-section" id="search-section">
+            <div class="section-label">{s.sectionSearch}</div>
+            <p class="section-note">{s.searchNote}</p>
+            <p class="search-tip">
+              <span class="search-tip-title">{s.searchTipTitle}</span>
+              {s.searchTipBody}
+              {` `}
+              {s.searchTipRecommend}
+              {` `}
+              <a href="https://app.tavily.com/" target="_blank" rel="noreferrer">{s.searchTavilyDashboardLabel}</a>
+            </p>
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="search_brave_key">{s.searchBraveLabel}</label>
+                <input
+                  type="password"
+                  id="search_brave_key"
+                  name="search_brave_key"
+                  autocomplete="off"
+                />
+              </div>
+              <div class="form-group">
+                <label for="search_tavily_key">{s.searchTavilyLabel}</label>
+                <input
+                  type="password"
+                  id="search_tavily_key"
+                  name="search_tavily_key"
+                  autocomplete="off"
+                />
+              </div>
+            </div>
+          </div>
+
+          <details class="config-section advanced-details" id="advanced-section">
+            <summary class="section-label">{s.sectionAdvanced}</summary>
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="time_timezone"
+                  >{s.timezoneLabel} <span class="required">*</span></label
+                >
+                <input
+                  type="text"
+                  id="time_timezone"
+                  name="time_timezone"
+                  placeholder={s.timezonePlaceholder}
+                />
+              </div>
+            </div>
+          </details>
+        </div>
+
+        <div class="flash-actions" style="margin-top: 1.75rem;">
+          <button type="button" class="btn-primary" id="flash-btn" disabled>
+            <Zap class="button-icon" />
+            {s.flashBtn}
+          </button>
+          <span class="flash-hint" id="flash-hint"
+            >{s.flashBtnDisabledNoDevice}</span
+          >
+        </div>
+        <div class="progress-wrap" id="progress-wrap">
+          <div class="progress-label">
+            <span id="progress-stage">{s.progressLabel}</span>
+            <span id="progress-pct">0%</span>
+          </div>
+          <div class="progress-bar-bg">
+            <div class="progress-bar" id="progress-bar"></div>
+          </div>
+          <div class="progress-log" id="progress-log"></div>
+        </div>
+        <div class="flash-result" id="flash-result"></div>
+      </div>
+
+      <div class="tab-panel" id="tab-console">
+        <div class="console-toolbar">
+          <button
+            type="button"
+            class="btn-secondary btn-sm"
+            id="console-clear-btn">{s.consoleClearBtn}</button
+          >
+          <button
+            type="button"
+            class="btn-secondary btn-sm"
+            id="console-reset-btn">{s.consoleResetBtn}</button
+          >
+        </div>
+        <div class="console-output" id="console-output"></div>
+        <div class="console-input-row">
+          <input
+            type="text"
+            id="console-input"
+            placeholder={s.consolePlaceholder}
+            disabled
+          />
+          <button
+            type="button"
+            class="btn-primary btn-sm console-send-btn"
+            id="console-send-btn"
+            disabled>↵</button
+          >
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script is:inline type="application/json" id="flash-boot" set:html={flashBootJson} />
+  <script>
+    import "@/flash-tool/flash-page.ts";
+  </script>
+</SiteShell>

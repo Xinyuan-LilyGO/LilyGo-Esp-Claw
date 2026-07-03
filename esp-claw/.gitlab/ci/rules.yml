@@ -1,0 +1,160 @@
+############
+# Patterns #
+############
+
+# build system, if changed, build all apps
+.patterns-build_system: &patterns-build_system
+  # For test
+  # - "tools/build_apps.py"
+  - "conftest.py"
+  - "pytest.ini"
+
+# components folder, in the alphabetic order
+.patterns-components_cap_cli: &patterns-components_cap_cli
+  - "components/cap_cli/**/*"
+
+.patterns-components_cap_files: &patterns-components_cap_files
+  - "components/cap_files/**/*"
+
+.patterns-components_cap_im_attachment: &patterns-components_cap_im_attachment
+  - "components/cap_im_attachment/**/*"
+
+.patterns-components_cap_im_qq: &patterns-components_cap_im_qq
+  - "components/cap_im_qq/**/*"
+
+.patterns-components_cap_im_tg: &patterns-components_cap_im_tg
+  - "components/cap_im_tg/**/*"
+
+.patterns-components_cap_im_wechat: &patterns-components_cap_im_wechat
+  - "components/cap_im_wechat/**/*"
+
+.patterns-components_cap_llm_inspect: &patterns-components_cap_llm_inspect
+  - "components/cap_llm_inspect/**/*"
+
+.patterns-components_cap_lua: &patterns-components_cap_lua
+  - "components/cap_lua/**/*"
+
+.patterns-components_cap_mcp_client: &patterns-components_cap_mcp_client
+  - "components/cap_mcp_client/**/*"
+
+.patterns-components_cap_mcp_server: &patterns-components_cap_mcp_server
+  - "components/cap_mcp_server/**/*"
+
+.patterns-components_cap_skill: &patterns-components_cap_skill
+  - "components/cap_skill/**/*"
+
+.patterns-components_cap_time: &patterns-components_cap_time
+  - "components/cap_time/**/*"
+
+.patterns-components_cap_web_search: &patterns-components_cap_web_search
+  - "components/cap_web_search/**/*"
+
+.patterns-components_claw_cap: &patterns-components_claw_cap
+  - "components/claw_cap/**/*"
+
+.patterns-components_claw_core: &patterns-components_claw_core
+  - "components/claw_core/**/*"
+
+.patterns-components_claw_event_router: &patterns-components_claw_event_router
+  - "components/claw_event_router/**/*"
+
+.patterns-components_claw_memory: &patterns-components_claw_memory
+  - "components/claw_memory/**/*"
+
+.patterns-components_claw_skill: &patterns-components_claw_skill
+  - "components/claw_skill/**/*"
+
+# application folder, in the alphabetic order
+.patterns-application_basic_demo: &patterns-application_basic_demo
+  - "application/basic_demo/**/*"
+
+.patterns-yml: &patterns-yml
+  - "**/*.yml"
+
+.patterns-docs: &patterns-docs
+  - "docs/**/*"
+
+##############
+# if anchors #
+##############
+.if-protected: &if-protected
+  if: '($CI_COMMIT_REF_NAME == "master" || $CI_COMMIT_BRANCH =~ /^release\/v/ || $CI_COMMIT_TAG =~ /^v\d+\.\d+(\.\d+)?($|-)/)'
+
+.if-dev-push: &if-dev-push
+  if: '$CI_COMMIT_REF_NAME != "master" && $CI_COMMIT_BRANCH !~ /^release\/v/ && $CI_COMMIT_TAG !~ /^v\d+\.\d+(\.\d+)?($|-)/ && ($CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "merge_request_event")'
+
+##################
+# Auto Generated #
+##################
+.if-trigger-job: &if-trigger-job
+  if: "$BOT_DYNAMIC_TEST_JOBS && $BOT_DYNAMIC_TEST_JOBS =~ $CI_JOB_NAME"
+
+.if-label-build: &if-label-build
+  if: '$BOT_LABEL_BUILD || $CI_MERGE_REQUEST_LABELS =~ /^(?:[^,\n\r]+,)*build(?:,[^,\n\r]+)*$/i'
+
+.if-label-target_test: &if-label-target_test
+  if: '$BOT_LABEL_TARGET_TEST || $CI_MERGE_REQUEST_LABELS =~ /^(?:[^,\n\r]+,)*target_test(?:,[^,\n\r]+)*$/i'
+
+.if-label-build_docs: &if-label-build_docs
+  if: '$BOT_LABEL_BUILD_DOCS || $CI_MERGE_REQUEST_LABELS =~ /^(?:[^,\n\r]+,)*build_docs(?:,[^,\n\r]+)*$/i'
+
+.if-label-pre_check: &if-label-pre_check
+  if: '$BOT_LABEL_PRE_CHECK || $CI_MERGE_REQUEST_LABELS =~ /^(?:[^,\n\r]+,)*pre_check(?:,[^,\n\r]+)*$/i'
+
+.if_label-deploy: &if-label-deploy
+  if: '$BOT_LABEL_DEPLOY || $CI_MERGE_REQUEST_LABELS =~ /^(?:[^,\n\r]+,)*deploy(?:,[^,\n\r]+)*$/i'
+
+# rules for applications
+.rules:build:application_basic_demo:
+  rules:
+    - <<: *if-protected
+    - <<: *if-label-build
+    - <<: *if-trigger-job
+    - <<: *if-dev-push
+      changes: *patterns-build_system
+    - <<: *if-dev-push
+      changes: *patterns-components_cap_cli
+    - <<: *if-dev-push
+      changes: *patterns-components_cap_files
+    - <<: *if-dev-push
+      changes: *patterns-components_cap_im_attachment
+    - <<: *if-dev-push
+      changes: *patterns-components_cap_im_qq
+    - <<: *if-dev-push
+      changes: *patterns-components_cap_im_tg
+    - <<: *if-dev-push
+      changes: *patterns-components_cap_im_wechat
+    - <<: *if-dev-push
+      changes: *patterns-components_cap_llm_inspect
+    - <<: *if-dev-push
+      changes: *patterns-components_cap_lua
+    - <<: *if-dev-push
+      changes: *patterns-components_cap_mcp_client
+    - <<: *if-dev-push
+      changes: *patterns-components_cap_mcp_server
+    - <<: *if-dev-push
+      changes: *patterns-components_cap_skill
+    - <<: *if-dev-push
+      changes: *patterns-components_cap_time
+    - <<: *if-dev-push
+      changes: *patterns-components_cap_web_search
+    - <<: *if-dev-push
+      changes: *patterns-components_claw_cap
+    - <<: *if-dev-push
+      changes: *patterns-components_claw_core
+    - <<: *if-dev-push
+      changes: *patterns-components_claw_event_router
+    - <<: *if-dev-push
+      changes: *patterns-components_claw_memory
+    - <<: *if-dev-push
+      changes: *patterns-components_claw_skill
+    - <<: *if-dev-push
+      changes: *patterns-application_basic_demo
+
+.rules:pre_check:docs:
+  rules:
+    - <<: *if-protected
+    - <<: *if-label-pre_check
+    - <<: *if-trigger-job
+    - <<: *if-dev-push
+      changes: *patterns-docs

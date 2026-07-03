@@ -1,0 +1,119 @@
+name: Deploy Docs to GitHub Pages
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+      - main
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+    env:
+      FIRMWARE_REMOTE_URL: ${{ secrets.FIRMWARE_REMOTE_URL }}
+      WECHAT_ILINK_BASE_URL: ${{ secrets.WECHAT_ILINK_BASE_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate required secret
+        run: |
+          if [ -z "${FIRMWARE_REMOTE_URL}" ]; then
+            echo "Missing required secret: FIRMWARE_REMOTE_URL"
+            exit 1
+          fi
+
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: docs/pnpm-lock.yaml
+
+
+      - name: Download and unpack firmware bundle
+        run: |
+          set -euo pipefail
+          rm -rf .tmp-firmware
+          mkdir -p .tmp-firmware
+          curl -fL "$FIRMWARE_REMOTE_URL" -o .tmp-firmware/firmware.zip
+          unzip -q .tmp-firmware/firmware.zip -d .tmp-firmware/unzip
+
+          SRC_DIR=".tmp-firmware/unzip"
+          if [ ! -d "$SRC_DIR/merged_binary" ] || [ ! -f "$SRC_DIR/firmware.json" ]; then
+            CANDIDATE_JSON="$(find .tmp-firmware/unzip -mindepth 1 -maxdepth 3 -type f -name firmware.json | head -n 1)"
+            if [ -z "$CANDIDATE_JSON" ]; then
+              echo "firmware.json not found in downloaded zip"
+              exit 1
+            fi
+            SRC_DIR="$(dirname "$CANDIDATE_JSON")"
+          fi
+
+          if [ ! -d "$SRC_DIR/merged_binary" ]; then
+            echo "merged_binary not found alongside firmware.json"
+            exit 1
+          fi
+
+          rm -rf docs/public/merged_binary
+          mv "$SRC_DIR/merged_binary" docs/public/merged_binary
+          mv -f "$SRC_DIR/firmware.json" docs/src/flash-tool/firmware.json
+
+      - name: Install D2
+        run: |
+          set -euo pipefail
+          curl -fsSL https://d2lang.com/install.sh | sh -s --
+          for bin_dir in "$HOME/.local/bin" "$HOME/.d2/bin"; do
+            if [ -d "$bin_dir" ]; then
+              echo "$bin_dir" >> "$GITHUB_PATH"
+            fi
+          done
+
+      - name: Verify D2
+        run: d2 --version
+
+      - name: Install frontend dependencies
+        run: pnpm -C docs install --frozen-lockfile
+
+      - name: Build frontend
+        env:
+          PUBLIC_DOC_SOURCECODE_REFS: ${{ github.sha }}
+          PUBLIC_WECHAT_ILINK_BASE_URL: ${{ secrets.WECHAT_ILINK_BASE_URL || '' }}
+        run: pnpm -C docs run build
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

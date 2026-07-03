@@ -1,0 +1,35 @@
+collect_firmware_manifest:
+  extends:
+    - .rules:build:application_basic_demo
+  stage: deploy
+  tags:
+    - build
+  image: python:3.13-slim
+  allow_failure: true
+  variables:
+    GIT_STRATEGY: fetch
+  rules:
+    - if: '$CI_COMMIT_REF_NAME == "master" && $CI_PIPELINE_SOURCE == "push"'
+      when: on_success
+      variables:
+        DEPLOY_FIRMWARE: "1"
+    - if: '$CI_COMMIT_REF_NAME != "master" && $CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: on_success
+      variables:
+        DEPLOY_FIRMWARE: "0"
+    - when: never
+  needs:
+    - job: build_application_basic_demo
+      artifacts: true
+      optional: true
+  script:
+    - apt-get update
+    - apt-get install -y curl
+    - python .gitlab/ci/generate_firmware_json.py
+    - python .gitlab/ci/deploy_firmware.py
+  artifacts:
+    when: always
+    paths:
+      - firmware.json
+      - merged_binary/**/*
+    expire_in: 1 week

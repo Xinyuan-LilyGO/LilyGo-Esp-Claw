@@ -1,0 +1,12 @@
+pre_check_docs:
+  stage: pre-check
+  tags:
+    - build
+  image: node:24-alpine
+  extends:
+    - .rules:pre_check:docs
+  script:
+    - corepack enable
+    - pnpm -C docs install --frozen-lockfile
+    - pnpm -C docs run check:doc-lines
+    - pnpm -C docs run astro check

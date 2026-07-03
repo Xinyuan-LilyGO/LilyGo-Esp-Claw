@@ -1,0 +1,12 @@
+{
+  "skills": [
+    {
+      "id": "cap_time",
+      "file": "cap_time.md",
+      "summary": "Fetch and sync current network time through the get_current_time capability.",
+      "cap_groups": [
+        "cap_time"
+      ]
+    }
+  ]
+}

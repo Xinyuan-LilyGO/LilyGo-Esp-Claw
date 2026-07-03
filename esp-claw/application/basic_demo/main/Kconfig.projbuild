@@ -1,0 +1,249 @@
+menu "Basic Demo Config"
+
+menu "Feature Toggles"
+
+    choice BASIC_DEMO_MEMORY_MODE
+        prompt "Memory management mode"
+        default BASIC_DEMO_MEMORY_MODE_FULL
+        help
+            Select whether the demo uses the current structured memory module
+            or a lightweight master-compatible memory flow.
+
+    config BASIC_DEMO_MEMORY_MODE_FULL
+        bool "Structured memory management"
+        help
+            Enable structured memory skills and the full memory capability group.
+
+    config BASIC_DEMO_MEMORY_MODE_LIGHTWEIGHT
+        bool "Lightweight memory"
+        help
+            Keep profile memory support, but switch long-term/session memory to a
+            lightweight flow without structured auto extraction.
+
+    endchoice
+
+    config BASIC_DEMO_ENABLE_EMOTE
+        bool "Enable emote"
+        depends on ESP_BOARD_DEV_DISPLAY_LCD_SUPPORT
+        default y
+        help
+            Enable expression emote startup and emote asset packaging for boards with LCD display support.
+
+endmenu
+
+menu "Default Wi-Fi Settings"
+
+    config BASIC_DEMO_WIFI_SSID
+        string "Default Wi-Fi SSID"
+        default ""
+        help
+            Default Wi-Fi SSID used to populate basic demo settings.
+
+    config BASIC_DEMO_WIFI_PASSWORD
+        string "Default Wi-Fi password"
+        default ""
+        help
+            Default Wi-Fi password used to populate basic demo settings.
+
+    config BASIC_DEMO_WIFI_AP_SSID_PREFIX
+        string "Provisioning AP SSID prefix"
+        default "esp-claw"
+        help
+            Prefix used to build the unique provisioning AP SSID. The full
+            SSID is "<prefix>-<MAC[3..5]>" (e.g. esp-claw-84AEE5).
+
+    config BASIC_DEMO_WIFI_AP_CHANNEL
+        int "Provisioning AP channel"
+        range 1 13
+        default 1
+        help
+            Channel used by the provisioning SoftAP.
+
+    config BASIC_DEMO_WIFI_AP_MAX_CONN
+        int "Provisioning AP max connections"
+        range 1 10
+        default 4
+        help
+            Maximum number of concurrent stations on the provisioning AP.
+
+    config BASIC_DEMO_WIFI_MAX_RETRY
+        int "STA max retries before AP fallback"
+        range 1 20
+        default 5
+        help
+            After this many consecutive STA connection failures the device
+            falls back to pure AP mode and waits for the user to provision
+            new credentials.
+
+endmenu
+
+menu "Default LLM Settings"
+
+    choice BASIC_DEMO_LLM_PROVIDER
+        prompt "Default LLM provider preset"
+        default BASIC_DEMO_LLM_PROVIDER_QWEN
+        help
+            Select the provider preset used to populate the shared LLM settings below.
+            OpenAI, Qwen Compatible, and Anthropic all reuse the same API key, model,
+            backend, profile, base URL, and auth fields.
+
+    config BASIC_DEMO_LLM_PROVIDER_OPENAI
+        bool "OpenAI"
+
+    config BASIC_DEMO_LLM_PROVIDER_QWEN
+        bool "Qwen Compatible"
+
+    config BASIC_DEMO_LLM_PROVIDER_ANTHROPIC
+        bool "Anthropic"
+
+    config BASIC_DEMO_LLM_PROVIDER_CUSTOM
+        bool "Custom"
+
+    endchoice
+
+    config BASIC_DEMO_LLM_API_KEY
+        string "Default LLM API key"
+        default ""
+        help
+            Default API key used to populate the shared LLM settings.
+            Anthropic reuses this field instead of having a dedicated provider-specific key.
+
+    config BASIC_DEMO_LLM_BACKEND_TYPE
+        string "Default LLM backend type"
+        default "openai_compatible" if BASIC_DEMO_LLM_PROVIDER_OPENAI
+        default "openai_compatible" if BASIC_DEMO_LLM_PROVIDER_QWEN
+        default "anthropic" if BASIC_DEMO_LLM_PROVIDER_ANTHROPIC
+        default "custom" if BASIC_DEMO_LLM_PROVIDER_CUSTOM
+        help
+            Default backend type for claw_core.
+            The provider preset above already fills this for standard providers.
+
+    config BASIC_DEMO_LLM_PROFILE
+        string "Default LLM profile"
+        default "openai" if BASIC_DEMO_LLM_PROVIDER_OPENAI
+        default "qwen_compatible" if BASIC_DEMO_LLM_PROVIDER_QWEN
+        default "anthropic" if BASIC_DEMO_LLM_PROVIDER_ANTHROPIC
+        default "custom_openai_compatible" if BASIC_DEMO_LLM_PROVIDER_CUSTOM
+        help
+            Default runtime profile for claw_core.
+            The provider preset above already fills this for standard providers.
+
+    config BASIC_DEMO_LLM_MODEL
+        string "Default LLM model"
+        default "" if BASIC_DEMO_LLM_PROVIDER_OPENAI
+        default "qwen3-max-2026-01-23" if BASIC_DEMO_LLM_PROVIDER_QWEN
+        default "" if BASIC_DEMO_LLM_PROVIDER_ANTHROPIC
+        default "" if BASIC_DEMO_LLM_PROVIDER_CUSTOM
+        help
+            Default model name for claw_core requests.
+            Set this explicitly for the provider you selected above.
+
+    config BASIC_DEMO_LLM_BASE_URL
+        string "Default LLM base URL"
+        default "https://api.openai.com/v1" if BASIC_DEMO_LLM_PROVIDER_OPENAI
+        default "https://dashscope.aliyuncs.com/compatible-mode/v1" if BASIC_DEMO_LLM_PROVIDER_QWEN
+        default "https://api.anthropic.com/v1" if BASIC_DEMO_LLM_PROVIDER_ANTHROPIC
+        default "" if BASIC_DEMO_LLM_PROVIDER_CUSTOM
+        help
+            Default base URL for the selected provider preset.
+            Leave the provider preset as Custom if you need to override this manually.
+
+    config BASIC_DEMO_LLM_AUTH_TYPE
+        string "Default LLM auth type"
+        default "bearer" if BASIC_DEMO_LLM_PROVIDER_OPENAI
+        default "bearer" if BASIC_DEMO_LLM_PROVIDER_QWEN
+        default "none" if BASIC_DEMO_LLM_PROVIDER_ANTHROPIC
+        default "bearer" if BASIC_DEMO_LLM_PROVIDER_CUSTOM
+        help
+            Auth mode for the LLM backend, for example bearer, api-key, or none.
+            The provider preset above already fills this for standard providers.
+
+    config BASIC_DEMO_LLM_TIMEOUT_MS
+        string "Default LLM timeout ms"
+        default "120000"
+        help
+            Timeout in milliseconds for outbound LLM HTTP requests.
+
+endmenu
+
+menu "Default IM Settings"
+
+    config BASIC_DEMO_QQ_APP_ID
+        string "Default QQ app ID"
+        default ""
+        help
+            Default QQ app ID used by the IM cap.
+
+    config BASIC_DEMO_QQ_APP_SECRET
+        string "Default QQ app secret"
+        default ""
+        help
+            Default QQ app secret used by the IM cap.
+
+    config BASIC_DEMO_FEISHU_APP_ID
+        string "Default Feishu app ID"
+        default ""
+        help
+            Default Feishu app ID used by the IM cap.
+
+    config BASIC_DEMO_FEISHU_APP_SECRET
+        string "Default Feishu app secret"
+        default ""
+        help
+            Default Feishu app secret used by the IM cap.
+
+    config BASIC_DEMO_TG_BOT_TOKEN
+        string "Default Telegram bot token"
+        default ""
+        help
+            Default Telegram bot token used by the IM cap.
+
+    config BASIC_DEMO_WECHAT_TOKEN
+        string "Default WeChat token"
+        default ""
+        help
+            Default WeChat bot token used by the IM cap.
+
+    config BASIC_DEMO_WECHAT_BASE_URL
+        string "Default WeChat base URL"
+        default "https://ilinkai.weixin.qq.com"
+        help
+            Default WeChat API base URL used by the IM cap.
+
+    config BASIC_DEMO_WECHAT_CDN_BASE_URL
+        string "Default WeChat CDN base URL"
+        default "https://novac2c.cdn.weixin.qq.com/c2c"
+        help
+            Default WeChat CDN base URL used for media upload and download.
+
+    config BASIC_DEMO_WECHAT_ACCOUNT_ID
+        string "Default WeChat account ID"
+        default "default"
+        help
+            Default logical account ID for local WeChat channel state.
+
+endmenu
+
+menu "Default Search And Time Settings"
+
+    config BASIC_DEMO_SEARCH_BRAVE_KEY
+        string "Default Brave Search API key"
+        default ""
+        help
+            Default Brave Search API key for the web search cap.
+
+    config BASIC_DEMO_SEARCH_TAVILY_KEY
+        string "Default Tavily API key"
+        default ""
+        help
+            Default Tavily API key for the web search cap.
+
+    config BASIC_DEMO_TIME_TIMEZONE
+        string "Default time cap timezone"
+        default "CST-8"
+        help
+            POSIX-style timezone string used by the time cap.
+
+endmenu
+
+endmenu
